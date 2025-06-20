@@ -1,0 +1,113 @@
+CREATE EXTERNAL TABLE IF NOT EXISTS accidentsTable (
+  ID STRING,
+  Source STRING,
+  Severity INT,
+  Start_Time TIMESTAMP,
+  End_Time TIMESTAMP,
+  Start_Lat DOUBLE,
+  Start_Lng DOUBLE,
+  End_Lat DOUBLE,
+  End_Lng DOUBLE,
+  `Distance(mi)` DOUBLE,
+  Description STRING,
+  Street STRING,
+  City STRING,
+  County STRING,
+  State STRING,
+  Zipcode STRING,
+  Country STRING,
+  Timezone STRING,
+  Airport_Code STRING,
+  Weather_Timestamp TIMESTAMP,
+  `Temperature(F)` DOUBLE,
+  `Wind_Chill(F)` DOUBLE,
+  `Humidity(%)` DOUBLE,
+  `Pressure(in)` DOUBLE,
+  `Visibility(mi)` DOUBLE,
+  Wind_Direction STRING,
+  `Wind_Speed(mph)` DOUBLE,
+  `Precipitation(in)` DOUBLE,
+  Weather_Condition STRING,
+  Amenity BOOLEAN,
+  Bump BOOLEAN,
+  Crossing BOOLEAN,
+  Give_Way BOOLEAN,
+  Junction BOOLEAN,
+  No_Exit BOOLEAN,
+  Railway BOOLEAN,
+  Roundabout BOOLEAN,
+  Station BOOLEAN,
+  Stop BOOLEAN,
+  Traffic_Calming BOOLEAN,
+  Traffic_Signal BOOLEAN,
+  Turning_Loop BOOLEAN,
+  Sunrise_Sunset STRING,
+  Civil_Twilight STRING,
+  Nautical_Twilight STRING,
+  Astronomical_Twilight STRING
+)
+
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE
+LOCATION 'gs://us_accidents_tasks/cleaned_accidents/csv/';
+
+
+
+-- 1. Row count, distinct count, and null counts
+INSERT OVERWRITE DIRECTORY 'gs://us_accidents_tasks/Summary/count'
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE
+
+SELECT
+  COUNT(*) AS total_rows,
+  COUNT(DISTINCT State) AS distinct_states,
+  SUM(CASE WHEN Severity IS NULL THEN 1 ELSE 0 END) AS null_severity,
+  SUM(CASE WHEN `Distance(mi)` IS NULL THEN 1 ELSE 0 END) AS null_distance
+FROM accidentsTable;
+
+
+-- 2. Single-column numeric summary statistics
+INSERT OVERWRITE DIRECTORY 'gs://us_accidents_tasks/Summary/severityStatistics'
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE
+
+SELECT
+  COUNT(*) AS n_records,
+  AVG(Severity) AS mean_severity,
+  STDDEV(Severity) AS sd_severity,
+  MIN(Severity) AS min_severity,
+  MAX(Severity) AS max_severity
+  FROM accidentsTable;
+
+
+-- 3. Multi-column summary statistics including quartiles
+INSERT OVERWRITE DIRECTORY 'gs://us_accidents_tasks/Summary/numColStatistics'
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE
+
+
+SELECT
+  -- Distance statistics
+  AVG(`Distance(mi)`) AS avg_distance,
+  STDDEV(`Distance(mi)`) AS sd_distance,
+  MIN(`Distance(mi)`) AS min_distance,
+  MAX(`Distance(mi)`) AS max_distance,
+  
+  -- Temperature statistics
+  AVG(`Temperature(F)`) AS avg_temp,
+  STDDEV(`Temperature(F)`) AS sd_temp,
+  MIN(`Temperature(F)`) AS min_temp,
+  MAX(`Temperature(F)`) AS max_temp,
+
+  -- Humidity statistics
+  AVG(`Humidity(%)`) AS avg_humidity,
+  STDDEV(`Humidity(%)`) AS sd_humidity,
+  MIN(`Humidity(%)`) AS min_humidity,
+  MAX(`Humidity(%)`) AS max_humidity
+FROM accidentsTable;
+
+

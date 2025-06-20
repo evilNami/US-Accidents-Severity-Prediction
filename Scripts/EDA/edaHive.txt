@@ -1,0 +1,115 @@
+-- 1. Create external table 
+CREATE EXTERNAL TABLE IF NOT EXISTS accidentsTable (
+  ID STRING,
+  Source STRING,
+  Severity INT,
+  Start_Time TIMESTAMP,
+  End_Time TIMESTAMP,
+  Start_Lat DOUBLE,
+  Start_Lng DOUBLE,
+  End_Lat DOUBLE,
+  End_Lng DOUBLE,
+  `Distance(mi)` DOUBLE,
+  Description STRING,
+  Street STRING,
+  City STRING,
+  County STRING,
+  State STRING,
+  Zipcode STRING,
+  Country STRING,
+  Timezone STRING,
+  Airport_Code STRING,
+  Weather_Timestamp TIMESTAMP,
+  `Temperature(F)` DOUBLE,
+  `Wind_Chill(F)` DOUBLE,
+  `Humidity(%)` DOUBLE,
+  `Pressure(in)` DOUBLE,
+  `Visibility(mi)` DOUBLE,
+  Wind_Direction STRING,
+  `Wind_Speed(mph)` DOUBLE,
+  `Precipitation(in)` DOUBLE,
+  Weather_Condition STRING,
+  Amenity BOOLEAN,
+  Bump BOOLEAN,
+  Crossing BOOLEAN,
+  Give_Way BOOLEAN,
+  Junction BOOLEAN,
+  No_Exit BOOLEAN,
+  Railway BOOLEAN,
+  Roundabout BOOLEAN,
+  Station BOOLEAN,
+  Stop BOOLEAN,
+  Traffic_Calming BOOLEAN,
+  Traffic_Signal BOOLEAN,
+  Turning_Loop BOOLEAN,
+  Sunrise_Sunset STRING,
+  Civil_Twilight STRING,
+  Nautical_Twilight STRING,
+  Astronomical_Twilight STRING
+)
+
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE
+LOCATION 'gs://us_accidents_tasks/cleaned_accidents/csv/';
+
+
+-- 2. EDA Queries 
+
+-- Q1: Accident Count by Severity
+INSERT OVERWRITE DIRECTORY 'gs://us_accidents_tasks/EDA/Hive/severity_count_by_severity'
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE
+
+SELECT Severity, COUNT(*) AS accident_count
+FROM accidentsTable
+GROUP BY Severity
+ORDER BY accident_count DESC;
+
+-- Q2: Top 10 States by Number of Accidents
+INSERT OVERWRITE DIRECTORY 'gs://us_accidents_tasks/EDA/Hive/top_10_states'
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE
+
+SELECT State, COUNT(*) AS cnt
+FROM accidentsTable
+GROUP BY State
+ORDER BY cnt DESC
+LIMIT 10;
+
+-- Q3: Average Distance by Severity
+INSERT OVERWRITE DIRECTORY 'gs://us_accidents_tasks/EDA/Hive/avg_distance_by_severity'
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE
+
+SELECT Severity, ROUND(AVG(`Distance(mi)`), 2) AS avg_distance
+FROM accidentsTable
+GROUP BY Severity
+ORDER BY Severity;
+
+-- Q4: Accidents by Hour of Day
+INSERT OVERWRITE DIRECTORY 'gs://us_accidents_tasks/EDA/Hive/accidents_by_hour'
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE
+
+SELECT HOUR(Start_Time) AS hour_of_day, COUNT(*) AS cnt
+FROM accidentsTable
+GROUP BY HOUR(Start_Time)
+ORDER BY hour_of_day;
+
+-- Q5: Top 5 Cities with Highest Severity >=4 Accidents
+INSERT OVERWRITE DIRECTORY 'gs://us_accidents_tasks/EDA/Hive/top_5_cities_severity4_plus'
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE
+
+SELECT City, COUNT(*) AS severe_count
+FROM accidentsTable
+WHERE Severity >= 4
+GROUP BY City
+ORDER BY severe_count DESC
+LIMIT 5;
