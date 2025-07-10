@@ -4,7 +4,7 @@ This repository contains the code and documentation for a Big Data pipeline desi
 
 ## 🌟 Project Overview
 
-The goal of this project is to enhance road safety through predictive analytics by analyzing the US Accidents (2016-2023) dataset. [cite\_start]This dataset, with its 7.7 million records and 49 attributes, aligns perfectly with the "three Vs" of Big Data: Volume, Velocity, and Variety[cite: 391]. [cite\_start]The pipeline addresses the critical need for efficient evaluation of traffic accident data for public safety and policy-making[cite: 384].
+The goal of this project is to enhance road safety through predictive analytics by analyzing the US Accidents (2016-2023) dataset. This dataset, with its 7.7 million records and 49 attributes, aligns perfectly with the "three Vs" of Big Data: Volume, Velocity, and Variety. The pipeline addresses the critical need for efficient evaluation of traffic accident data for public safety and policy-making.
 
 The project demonstrates an end-to-end Big Data analytics pipeline, covering:
 
@@ -75,12 +75,12 @@ The repository is organized into the following main directories:
 
 This project utilizes Google Cloud Dataproc for its Big Data processing capabilities. The environment setup involved:
 
-1.  [cite\_start]**Google Dataproc Cluster Creation**: A standard cluster (1 master, N workers) was created using Dataproc, with version `2.1-ubuntu20` (Ubuntu 20.04 LTS, Hadoop 3.3, Spark 3.3)[cite: 417]. [cite\_start]N1-standard machine types were selected for both manager and worker nodes[cite: 418].
-2.  [cite\_start]**Cloud Storage Bucket**: A regional cloud storage bucket named "us\_accidents\_tasks" was created to store raw input data, job scripts, and logs[cite: 506]. [cite\_start]The `US_Accidents_March23.csv` dataset was uploaded to this bucket[cite: 508].
+1.  **Google Dataproc Cluster Creation**: A standard cluster (1 master, N workers) was created using Dataproc, with version `2.1-ubuntu20` (Ubuntu 20.04 LTS, Hadoop 3.3, Spark 3.3). N1-standard machine types were selected for both manager and worker nodes.
+2.  **Cloud Storage Bucket**: A regional cloud storage bucket named "us\_accidents\_tasks" was created to store raw input data, job scripts, and logs. The `US_Accidents_March23.csv` dataset was uploaded to this bucket.
 
 ### Data Source
 
-[cite\_start]The primary dataset used is the **US Accidents (2016-2023) dataset**[cite: 388]. [cite\_start]This dataset provides a comprehensive description of traffic scenarios in the USA, including attributes like geographic coordinates, timestamps, weather conditions, road and traffic patterns, and accident severity[cite: 389].
+The primary dataset used is the **US Accidents (2016-2023) dataset** from Kaggle. This dataset provides a comprehensive description of traffic scenarios in the USA, including attributes like geographic coordinates, timestamps, weather conditions, road and traffic patterns, and accident severity.
 
 ## 💻 Usage
 
@@ -88,29 +88,29 @@ This project utilizes Google Cloud Dataproc for its Big Data processing capabili
 
 The `clean.py` script in `Scripts/DataCleaning/` performs data cleaning and transformation using PySpark. Key steps include:
 
-  * [cite\_start]Dropping duplicate rows based on the 'ID' column[cite: 581].
-  * [cite\_start]Casting 'Start\_Time' and 'End\_Time' to timestamp data types[cite: 585].
-  * [cite\_start]Removing records with null values in critical fields like 'ID', 'Start\_Time', and 'Severity'[cite: 587, 592].
-  * [cite\_start]Filling missing numeric columns with default values[cite: 593].
-  * [cite\_start]Trimming and converting categorical text data to lowercase[cite: 594].
-  * [cite\_start]Removing logically contradictory occurrences (e.g., Severity $\\geq$ 4 but Distance(mi) = 0)[cite: 596].
+  * Dropping duplicate rows based on the 'ID' column.
+  * Casting 'Start\_Time' and 'End\_Time' to timestamp data types.
+  * Removing records with null values in critical fields like 'ID', 'Start\_Time', and 'Severity'.
+  * Filling missing numeric columns with default values.
+  * Trimming and converting categorical text data to lowercase.
+  * Removing logically contradictory occurrences (e.g., Severity $\\geq$ 4 but Distance(mi) = 0).
 
-[cite\_start]To run the cleaning job, the `clean.py` script was uploaded to the Google Cloud Storage bucket, and a PySpark job was submitted in the Dataproc cluster[cite: 600, 601]. The cleaned data is saved in the `Output/Cleaned_data/cleaned_accidents/` folder.
+To run the cleaning job, the `clean.py` script was uploaded to the Google Cloud Storage bucket, and a PySpark job was submitted in the Dataproc cluster. The cleaned data is saved in the `Output/Cleaned_data/cleaned_accidents/` folder.
 
 ### 2\. Exploratory Data Analysis (EDA)
 
 EDA was performed using both HiveQL and Spark.
 
-  * **HiveQL**: The `SummaryHiveQL.txt` and `edaHive.txt` scripts in `Scripts/EDA/` and `Scripts/SummaryStats/` were used. [cite\_start]These scripts create an external Hive table and perform various aggregations, such as checking null records, calculating summary statistics, and identifying states/cities with the most accidents[cite: 607, 608, 609]. The results are stored in `Output/EDA_output/Hive/`.
-  * [cite\_start]**Spark**: The `eda_spark.py` script in `Scripts/EDA/` was used to answer similar questions as the HiveQL scripts[cite: 617]. [cite\_start]The `coalesce()` function was used to combine results into a single output file for easier interpretation[cite: 618]. The results are stored in `Output/EDA_output/Spark/`.
+  * **HiveQL**: The `SummaryHiveQL.txt` and `edaHive.txt` scripts in `Scripts/EDA/` and `Scripts/SummaryStats/` were used. These scripts create an external Hive table and perform various aggregations, such as checking null records, calculating summary statistics, and identifying states/cities with the most accidents. The results are stored in `Output/EDA_output/Hive/`.
+  ***Spark**: The `eda_spark.py` script in `Scripts/EDA/` was used to answer similar questions as the HiveQL scriptsThe `coalesce()` function was used to combine results into a single output file for easier interpretation. The results are stored in `Output/EDA_output/Spark/`.
 
 ### 3\. Advanced Analytics and Machine Learning
 
 The `severity.py` script in `Scripts/ML/` implements a machine learning pipeline to predict accident severity.
 
-  * **Preprocessing**: Boolean datatypes are cast to strings, missing numeric values are replaced with a sentinel value (-1), categorical variables are converted to numeric indices, encoded, and assembled into a single vector. [cite\_start]Features are then standardized using `StandardScaler`[cite: 636, 637, 638, 639].
-  * [cite\_start]**Model Selection**: The Random Forest (RF) algorithm was chosen for its ability to handle complex non-linear relationships, various datatypes, and its parallel tree-growth process suitable for Spark MLlib[cite: 640, 641, 643].
-  * [cite\_start]**Results**: The model achieved an accuracy of 0.7977 and an F1-score of 0.7079[cite: 645]. [cite\_start]However, the confusion matrix revealed a significant class imbalance issue, with nearly all predictions falling into Severity Class 0[cite: 647, 649].
+  * **Preprocessing**: Boolean datatypes are cast to strings, missing numeric values are replaced with a sentinel value (-1), categorical variables are converted to numeric indices, encoded, and assembled into a single vector. Features are then standardized using `StandardScaler`.
+  * **Model Selection**: The Random Forest (RF) algorithm was chosen for its ability to handle complex non-linear relationships, various datatypes, and its parallel tree-growth process suitable for Spark MLlib.
+  * **Results**: The model achieved an accuracy of 0.7977 and an F1-score of 0.7079. However, the confusion matrix revealed a significant class imbalance issue, with nearly all predictions falling into Severity Class 0.
 
 The output of the ML model, including the confusion matrix, can be found in `Output/ML_output/`.
 
