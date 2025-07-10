@@ -1,7 +1,3 @@
-Here's a README.md file for your GitHub repository, incorporating information from your project description and the provided file structures:
-
------
-
 # 🛣️ Big Data Pipeline for Road Accident Analysis
 
 This repository contains the code and documentation for a Big Data pipeline designed to analyze road accident data and predict accident severity. The project utilizes Google Cloud Platform's Dataproc service, leveraging technologies like Spark, Hive, and MLlib for data processing, exploratory data analysis, and machine learning.
