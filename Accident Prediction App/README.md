@@ -2,7 +2,7 @@
 
 A machine learning web app that predicts the severity of US traffic accidents based on location, weather, time, and road conditions.
 
-**[🚀 Live Demo →](https://your-app-url.streamlit.app)** *(update this link after deployment)*
+**[🚀 Live Demo →](https://ushbxrq5fblrr5abnu22e3.streamlit.app/))**
 
 ---
 
