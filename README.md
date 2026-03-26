@@ -1,5 +1,8 @@
 # 🛣️ Big Data Pipeline for Road Accident Analysis
 
+**[🚀 Live Web App — US Accident Severity Predictor](https://your-app-url.streamlit.app)** *(update after deployment)*
+
+
 This repository contains the code and documentation for a Big Data pipeline designed to analyze road accident data and predict accident severity. The project utilizes Google Cloud Platform's Dataproc service, leveraging technologies like Spark, Hive, and MLlib for data processing, exploratory data analysis, and machine learning.
 
 ## 🌟 Project Overview
