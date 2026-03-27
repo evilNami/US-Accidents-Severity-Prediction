@@ -1,128 +1,246 @@
-# 🛣️ Big Data Pipeline for Road Accident Analysis
+# 🛣️ US Accident Severity Prediction
 
-**[🚀 Live Web App — US Accident Severity Predictor](https://your-app-url.streamlit.app)** *(update after deployment)*
+> End-to-end data pipeline and machine learning project analyzing 7.7 million US traffic accidents — from exploratory analysis on a local subset to a distributed big data pipeline on Google Cloud Platform, with a live interactive web app for real-time severity prediction.
 
+[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://ushbxrq5fblrr5abnu22e3.streamlit.app/)
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
+[![XGBoost](https://img.shields.io/badge/XGBoost-Classifier-006AFF?style=for-the-badge)](https://xgboost.readthedocs.io/)
+[![Polars](https://img.shields.io/badge/Polars-DataFrame-CD792C?style=for-the-badge&logo=polars&logoColor=white)](https://pola.rs/)
+[![Apache Spark](https://img.shields.io/badge/Apache-Spark-E25A1C?style=for-the-badge&logo=apachespark&logoColor=white)](https://spark.apache.org/)
+[![GCP](https://img.shields.io/badge/Google_Cloud-Dataproc-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)](https://cloud.google.com/dataproc)
+[![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?style=for-the-badge&logo=scikit-learn&logoColor=white)](https://scikit-learn.org/)
 
-This repository contains the code and documentation for a Big Data pipeline designed to analyze road accident data and predict accident severity. The project utilizes Google Cloud Platform's Dataproc service, leveraging technologies like Spark, Hive, and MLlib for data processing, exploratory data analysis, and machine learning.
+---
 
-## 🌟 Project Overview
+## 📌 Project Overview
 
-The goal of this project is to enhance road safety through predictive analytics by analyzing the US Accidents (2016-2023) dataset. This dataset, with its 7.7 million records and 49 attributes, aligns perfectly with the "three Vs" of Big Data: Volume, Velocity, and Variety. The pipeline addresses the critical need for efficient evaluation of traffic accident data for public safety and policy-making.
+This project answers a real-world question: **can we predict how severe a traffic accident will be before responders arrive?**
 
-The project demonstrates an end-to-end Big Data analytics pipeline, covering:
+Using the [US Accidents (2016–2023)](https://www.kaggle.com/datasets/sobhanmoosavi/us-accidents) dataset (7.7M records, 49 attributes), the project follows a two-phase approach:
 
-  * **Data Wrangling and Transformation**: Cleaning and preparing raw accident data using PySpark.
-  * **Exploratory Data Analysis (EDA)**: Gaining insights into accident patterns using both HiveQL and Spark.
-  * **Machine Learning Implementation**: Developing a model to predict accident severity using Spark MLlib.
+1. **Local Analysis & Model Development** — Deep EDA with Polars, feature engineering, and ML model training in a Colab notebook on a stratified 500K-record sample.
+2. **GCP Scale-Out** — The validated pipeline was lifted to Google Cloud Dataproc to process the full 7.7M record dataset using Apache Spark and Hive.
+
+The final XGBoost model is deployed as a **live Streamlit web app** for interactive severity prediction.
+
+---
+
+## 📊 Phase 1: Exploratory Data Analysis
+
+All EDA was performed using **Polars** for its high-performance, memory-efficient DataFrame operations on the full raw dataset.
+
+### Dataset at a Glance
+
+| Attribute | Value |
+|---|---|
+| Total Records | 7,728,394 |
+| Features | 46 |
+| Coverage | 49 US states, 2016–2023 |
+| Target | Severity (1 = minor → 4 = major road closure) |
+
+### Key Findings
+
+**Severe class imbalance** — Severity 2 dominates at ~80% of all records, making naive accuracy a misleading metric. This guided the choice of class-weighted models.
+
+| Severity Level | Description | Share |
+|---|---|---|
+| 1 — Minor | Low traffic impact | ~0.9% |
+| 2 — Moderate | Most common scenario | ~79.7% |
+| 3 — Significant | Road partially blocked | ~17.0% |
+| 4 — Severe | Full road closure | ~2.6% |
+
+**Geographic concentration** — Top 105 cities (0.77% of all cities) account for the vast majority of incidents. Miami, Houston, Dallas, and Charlotte lead in accident volume, reflecting both population density and reporting coverage.
+
+**Temporal patterns** — Accidents spike during morning and evening rush hours and show distinct weekday vs. weekend distributions. Night-time accidents correlate with higher severity.
+
+**Weather & road features** — Direct weather-to-severity correlations are weak; severity is better captured through **engineered interaction features** (e.g., night + low visibility) and **target-encoded risk scores** per location and weather condition.
+
+**High-sparsity features excluded** — `End_Lat`, `End_Lng`, `Wind_Chill`, and `Precipitation` had >50% missing values and were dropped. `Year` and `Pressure` showed extreme multicollinearity (VIF > 4000) and were removed.
+
+---
+
+## ⚙️ Phase 2: Feature Engineering
+
+A core focus of this project was crafting **29 high-signal features** from raw attributes:
+
+### Target-Encoded Risk Scores
+Rather than one-hot encoding high-cardinality fields, each category was replaced with its **mean historical severity** — capturing geographic and weather risk compactly.
+
+| Feature | Description |
+|---|---|
+| `City_Sev_Avg` | Average severity for this city |
+| `State_Sev_Avg` | Average severity for this state |
+| `Weather_Condition_Sev_Avg` | Risk score for this weather type |
+| `Wind_Direction_Sev_Avg` | Risk score for wind direction |
+
+### Interaction & Derived Features
+
+| Feature | Logic |
+|---|---|
+| `Night_Low_Vis` | Is night AND visibility < 2 miles |
+| `High_Speed_Potential` | No traffic signal AND distance > 1 mile |
+| `Impact_Intensity` | Distance / (duration + 1) — proxy for spread |
+| `Log_Distance` | Log-transformed distance impacted |
+| `Road_Feature_Count` | Count of nearby infrastructure features |
+| `Is_Night` | Hour < 6 or > 20 |
+| `Is_Weekend` | Extracted from timestamp |
+
+### Temporal & Road Features
+`Hour`, `Month`, and 11 binary road flags (`Junction`, `Traffic_Signal`, `Crossing`, `Stop`, `Railway`, etc.) round out the feature set.
+
+---
+
+## 🤖 Phase 3: Model Training & Selection
+
+Models were trained on a **stratified 500K-record sample** (80/20 train-test split, class-balanced) in a Colab notebook.
+
+The target was binarized: **Is_Severe = 1** if Severity ≥ 3, else 0.
+
+### Random Forest vs. XGBoost
+
+Both models used class-balancing strategies to handle the 4:1 imbalance.
+
+| Metric | Random Forest | XGBoost |
+|---|---|---|
+| Accuracy | 80% | 80% |
+| Macro F1 | 0.73 | 0.73 |
+| Recall (Severe class) | 0.80 | **0.81** |
+| Precision (Severe class) | 0.48 | 0.48 |
+
+**XGBoost was selected** as the production model for three reasons:
+- Marginally higher recall on the severe class — more important than precision in safety-critical prediction
+- Lower `max_depth` (6 vs. 12) means faster inference with equivalent accuracy
+- Native `scale_pos_weight` parameter handles class imbalance more gracefully than Random Forest's `balanced_subsample`
+
+The trained XGBoost model, scaler, and feature artifacts were serialized as `.pkl` files for deployment.
+
+---
+
+## ☁️ Phase 4: Scaling to Google Cloud Platform
+
+The validated pipeline was scaled to the **full 7.7M record dataset** on GCP Dataproc, running Spark 3.3 on a managed cluster.
+
+### Pipeline Stages
+
+```
+Raw CSV (GCS)
+    │
+    ▼
+[1] PySpark Data Cleaning      → Deduplication, null filtering, type casting, outlier removal
+    │
+    ▼
+[2] Hive EDA                   → External table over cleaned CSV, aggregation queries
+    │
+    ▼
+[3] PySpark EDA                → Parallel analysis, coalesce to single output files
+    │
+    ▼
+[4] Spark MLlib — Random Forest → Full-dataset model training (100 trees, depth 10, 80/20 split)
+    │
+    ▼
+Predictions + Confusion Matrix saved to GCS
+```
+
+The distributed model on GCP confirmed the findings from the local notebook — validating that the feature engineering and model architecture generalize well beyond the 500K sample.
+
+---
+
+## 🌐 Live Web App
+
+**[🚀 Try it live →](https://ushbxrq5fblrr5abnu22e3.streamlit.app/)**
+
+Built with Streamlit, the app lets you simulate any accident scenario and instantly get a severity prediction from the XGBoost model.
+
+### Inputs
+- **Location** — State and city (dropdown, populated from training data)
+- **Weather** — Condition, temperature, humidity, pressure, wind speed & direction
+- **Time** — Hour of day, month, weekend toggle
+- **Road** — Distance impacted, nearby road features (junction, signal, crossing, etc.)
+
+### Output
+- Binary classification: **High Severity** (Level 3–4) vs. **Low Severity** (Level 1–2)
+- Probability score with a visual confidence bar
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Data Manipulation | Polars, pandas, NumPy |
+| Visualization | Matplotlib, Seaborn, Folium |
+| Machine Learning | scikit-learn, XGBoost |
+| Model Serialization | joblib |
+| Web App | Streamlit |
+| Big Data Processing | Apache Spark / PySpark |
+| SQL Analytics | Apache Hive (HiveQL) |
+| Cloud Platform | Google Cloud Dataproc |
+| Cloud Storage | Google Cloud Storage (GCS) |
+| Notebook Environment | Google Colab |
+
+---
+
+## 🚀 Run Locally
+
+```bash
+# Clone the repo
+git clone https://github.com/yourusername/US-Accidents-Severity-Prediction.git
+cd US-Accidents-Severity-Prediction
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Launch the web app
+cd "Accident Prediction App"
+streamlit run app.py
+```
+
+All `.pkl` model artifacts are included in the `Accident Prediction App/` directory — no retraining required.
+
+---
 
 ## 📁 Repository Structure
 
-The repository is organized into the following main directories:
-
 ```
-.
-├── SummaryStat_output/
-│   ├── Summary_count_000000_0
-│   ├── Summary_numColStatistics_00...
-│   └── Summary_severityStatistics_00...
+US-Accidents-Severity-Prediction/
+├── Accident Prediction App/
+│   ├── app.py                          # Streamlit app
+│   ├── accident_severity_model.pkl     # Trained XGBoost model
+│   ├── data_scaler.pkl                 # Fitted StandardScaler
+│   ├── feature_columns.pkl             # Ordered feature names
+│   ├── target_mappings.pkl             # Target-encoded averages
+│   └── state_city_map.pkl              # State → city lookup
 ├── Scripts/
-│   ├── DataCleaning/
-│   │   └── clean.py
-│   ├── EDA/
-│   │   ├── edaHive.txt
-│   │   └── eda_spark.py
-│   ├── ML/
-│   │   └── severity.py
-│   └── SummaryStats/
-│       └── SummaryHiveQl.txt
+│   ├── Notebook/
+│   │   └── Prediction_of_Accident_Severity.ipynb   # Full EDA + ML notebook
+│   └── onGCP/
+│       ├── DataCleaning/clean.py       # PySpark cleaning job
+│       ├── EDA/
+│       │   ├── eda_spark.py            # PySpark EDA
+│       │   └── edaHive.txt             # HiveQL queries
+│       ├── ML/severity.py              # Spark MLlib pipeline
+│       └── SummaryStats/SummaryHiveQl.txt
 ├── Output/
 │   ├── Cleaned_data/
-│   │   └── Cleaned_dataset
 │   ├── EDA_output/
 │   │   ├── Hive/
-│   │   │   ├── EDA_Hive_accidents_by_hour...
-│   │   │   ├── EDA_Hive_avg_distance_by_s...
-│   │   │   ├── EDA_Hive_severity_count_by...
-│   │   │   ├── EDA_Hive_top_10_states_000...
-│   │   │   └── EDA_Hive_top_5_cities_severit...
 │   │   └── Spark/
-│   │       ├── EDA_SPARK_accident_count_...
-│   │       ├── EDA_SPARK_accidents_by_ho...
-│   │       ├── EDA_SPARK_avg_distance_by...
-│   │       ├── EDA_SPARK_top_10_states_pa...
-│   │       └── EDA_SPARK_top_5_cities_seve...
 │   └── ML_output/
-│       ├── ML_predictions_random_forest...
-│       ├── confusion_matrix_rf.png
-│       └── googleDrive_link
-├── LICENSE
+│       ├── ML_predictions_random_forest_*.csv
+│       └── confusion_matrix_rf.png
+├── requirements.txt
 └── README.md
 ```
 
-### Directory Breakdown:
+---
 
-  * `SummaryStat_output/`: Contains output files from initial summary statistics generated by Hive.
-  * `Scripts/`: Houses all the Python and HiveQL scripts used in the project.
-      * `DataCleaning/`: Script for data wrangling and transformation.
-      * `EDA/`: Scripts for Exploratory Data Analysis using HiveQL and PySpark.
-      * `ML/`: Script for the machine learning model implementation.
-      * `SummaryStats/`: Script for generating initial summary statistics using HiveQL.
-  * `Output/`: Stores all the generated output files from various stages of the pipeline.
-      * `Cleaned_data/`: The cleaned dataset after data wrangling.
-      * `EDA_output/`: Results from the Exploratory Data Analysis, separated by Hive and Spark outputs.
-      * `ML_output/`: Results from the machine learning model, including the confusion matrix.
+## 👤 Author
 
-## 🚀 Getting Started
+**Pradeepta Dey**
 
-### Environment Setup
-
-This project utilizes Google Cloud Dataproc for its Big Data processing capabilities. The environment setup involved:
-
-1.  **Google Dataproc Cluster Creation**: A standard cluster (1 master, N workers) was created using Dataproc, with version `2.1-ubuntu20` (Ubuntu 20.04 LTS, Hadoop 3.3, Spark 3.3). N1-standard machine types were selected for both manager and worker nodes.
-2.  **Cloud Storage Bucket**: A regional cloud storage bucket named "us\_accidents\_tasks" was created to store raw input data, job scripts, and logs. The `US_Accidents_March23.csv` dataset was uploaded to this bucket.
-
-### Data Source
-
-The primary dataset used is the **US Accidents (2016-2023) dataset** from Kaggle. This dataset provides a comprehensive description of traffic scenarios in the USA, including attributes like geographic coordinates, timestamps, weather conditions, road and traffic patterns, and accident severity.
-
-## 💻 Usage
-
-### 1\. Data Wrangling and Transformation
-
-The `clean.py` script in `Scripts/DataCleaning/` performs data cleaning and transformation using PySpark. Key steps include:
-
-  * Dropping duplicate rows based on the 'ID' column.
-  * Casting 'Start\_Time' and 'End\_Time' to timestamp data types.
-  * Removing records with null values in critical fields like 'ID', 'Start\_Time', and 'Severity'.
-  * Filling missing numeric columns with default values.
-  * Trimming and converting categorical text data to lowercase.
-  * Removing logically contradictory occurrences (e.g., Severity $\\geq$ 4 but Distance(mi) = 0).
-
-To run the cleaning job, the `clean.py` script was uploaded to the Google Cloud Storage bucket, and a PySpark job was submitted in the Dataproc cluster. The cleaned data is saved in the `Output/Cleaned_data/cleaned_accidents/` folder.
-
-### 2\. Exploratory Data Analysis (EDA)
-
-EDA was performed using both HiveQL and Spark.
-
-  * **HiveQL**: The `SummaryHiveQL.txt` and `edaHive.txt` scripts in `Scripts/EDA/` and `Scripts/SummaryStats/` were used. These scripts create an external Hive table and perform various aggregations, such as checking null records, calculating summary statistics, and identifying states/cities with the most accidents. The results are stored in `Output/EDA_output/Hive/`.
-  ***Spark**: The `eda_spark.py` script in `Scripts/EDA/` was used to answer similar questions as the HiveQL scriptsThe `coalesce()` function was used to combine results into a single output file for easier interpretation. The results are stored in `Output/EDA_output/Spark/`.
-
-### 3\. Advanced Analytics and Machine Learning
-
-The `severity.py` script in `Scripts/ML/` implements a machine learning pipeline to predict accident severity.
-
-  * **Preprocessing**: Boolean datatypes are cast to strings, missing numeric values are replaced with a sentinel value (-1), categorical variables are converted to numeric indices, encoded, and assembled into a single vector. Features are then standardized using `StandardScaler`.
-  * **Model Selection**: The Random Forest (RF) algorithm was chosen for its ability to handle complex non-linear relationships, various datatypes, and its parallel tree-growth process suitable for Spark MLlib.
-  * **Results**: The model achieved an accuracy of 0.7977 and an F1-score of 0.7079. However, the confusion matrix revealed a significant class imbalance issue, with nearly all predictions falling into Severity Class 0.
-
-The output of the ML model, including the confusion matrix, can be found in `Output/ML_output/`.
-
-## 🤝 Contributing
-
-Contributions are welcome\! If you have suggestions for improvements or new features, please open an issue or submit a pull request.
+---
 
 ## 📄 License
 
-This project is licensed under the [LICENSE](https://www.google.com/search?q=LICENSE) file.
-
------
+This project is licensed under the [MIT License](LICENSE).
