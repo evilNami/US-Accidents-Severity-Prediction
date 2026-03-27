@@ -27,7 +27,7 @@ except FileNotFoundError as e:
     st.stop()
 
 # --- APP UI ---
-st.title("🛡️ US Accident Severity Predictor")
+st.title("🛡️ Accident Severity Predictor")
 st.markdown("Fill in the details below to analyze the risk level of an accident.")
 
 with st.form("prediction_form"):
